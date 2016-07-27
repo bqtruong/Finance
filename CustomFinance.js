@@ -61,6 +61,7 @@ request(target, function(error, response, body) //Request to Google Finance News
                     //     console.log(wordBank[word]);
                     // }
                 }
+                console.log(wordBank[100]);
             });
         }
     }
