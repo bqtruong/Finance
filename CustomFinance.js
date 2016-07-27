@@ -5,13 +5,22 @@ var request = require("request"),
     wordBank = [],
     wordCount = [];
 
-request(target, function(error, response, body) //Request to Google Finance News
-{
-    if (error)
-    {
-        console.log("There was an error: " + error);
-    }
-    else
+function scrapeGoogle(page) {
+    var scrape = [];
+    var promise = new Promise(function(resolve, reject) {
+        request(page, function(error, response, body) //Request to Google Finance News
+        {
+            if (error)
+            {
+                reject(Error(request.error));
+            }
+            else
+            {
+                resolve(body);
+            }
+        })
+    });
+    promise.then(function(body)
     {
         var $ = cheerio.load(body);
         var secondURLreg = new RegExp("[^http]http.+(?=&cid)")
@@ -20,49 +29,60 @@ request(target, function(error, response, body) //Request to Google Finance News
             var url = this.attribs.href;
             if (url.startsWith("http"))
             {
-                urls.push(url.match(secondURLreg)[0].substring(1));
+                scrape.push(url.match(secondURLreg)[0].substring(1));
             }
         });
-        for (var linkIndex = 0; linkIndex < urls.length; linkIndex++)
+        return scrape;
+    }, function(error)
+    {
+        console.log("Promise rejected: " + error)
+    });
+};
+
+var temp = scrapeGoogle(target);
+console.log(temp);
+
+function scrapeSite(link) {
+    var promise = new Promise(function(resolve, reject) 
+    {
+        request(link, function(error, response, body) //Request to links
         {
-            var link = urls[linkIndex];
-            request(link, function(err, res, bod) //Request to links
+            if (error)
             {
-                if (err)
+                reject(Error(request.error));
+            }
+            else
+            {
+                resolve(body);
+            }
+            
+        });
+    });
+    promise.then(function(body) 
+    {
+        var $page = cheerio.load(body);
+        var text = $page("body").text().replace(/\s+/g, " ").replace(/[^A-Za-z ]/g, "").toLowerCase().split(" ");
+        text.forEach(function(word)
+        {
+            if (word.length > 15)
+            {
+                text.splice(wordIndex, 1);
+            }
+            else
+            {
+                if (wordBank.indexOf(word) != -1)
                 {
-                    console.log("There was an error: " + err);
+                    wordCount[wordBank.indexOf(word)]++;
                 }
                 else
                 {
-                    var $page = cheerio.load(bod);
-                    var text = $page("body").text().replace(/\s+/g, " ").replace(/[^A-Za-z ]/g, "").toLowerCase().split(" ");
-                    for (var wordIndex = 0; wordIndex < text.length; wordIndex++)
-                    {
-                        if (text[wordIndex].length > 15)
-                        {
-                            text.splice(wordIndex, 1);
-                            wordIndex--;
-                        }
-                        else
-                        {
-                            if (wordBank.indexOf(text[wordIndex]) != -1)
-                            {
-                                wordCount[wordBank.indexOf(text[wordIndex])]++;
-                            }
-                            else
-                            {
-                                wordBank.push(text[wordIndex]);
-                                wordCount.push(1);
-                            }
-                        }
-                    }
-                    // for (var word = 0; word < wordBank.length; word++)
-                    // {
-                    //     console.log(wordBank[word]);
-                    // }
+                    wordBank.push(word);
+                    wordCount.push(1);
                 }
-                console.log(wordBank[100]);
-            });
-        }
-    }
-});
+            }
+        });
+    }, function(error)
+    {
+        console.log("Promise rejected: " + error);
+    });   
+};
